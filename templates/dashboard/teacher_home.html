@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h4 class="mb-0">My Classroom Materials</h4>
+            </div>
+            <div class="card-body">
+                {% if materials %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Subject / Sub-strand</th>
+                            <th>Uploaded</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for material in materials %}
+                        <tr>
+                            <td>
+                                <strong>{{ material.title }}</strong><br>
+                                <small class="text-muted">{{ material.description|truncatewords:10 }}</small>
+                            </td>
+                            <td><span class="badge bg-secondary">{{ material.material_type }}</span></td>
+                            <td>
+                                {{ material.substrand.strand.learning_area.name }} <br>
+                                <small>{{ material.substrand.name }}</small>
+                            </td>
+                            <td>{{ material.uploaded_at|date:"M d, Y" }}</td>
+                            <td>
+                                <!-- The Magic Button -->
+                                <button 
+                                    class="btn btn-primary btn-sm" 
+                                    onclick="generateLesson({{ material.id }}, {{ material.substrand.id }})"
+                                >
+                                    ✨ Generate Lesson
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <p class="text-center text-muted">No materials uploaded yet. Go to the Admin panel to upload some!</p>
+                    <div class="text-center">
+                        <a href="/admin/" class="btn btn-outline-dark">Go to Admin Upload</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Result Modal -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">AI Generated Lesson Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="loadingSpinner" class="text-center d-none">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p>Consulting the AI... (This may take 10-20 seconds)</p>
+                </div>
+                <pre id="lessonContent" class="bg-light p-3 border rounded" style="white-space: pre-wrap;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
+
+    function generateLesson(materialId, substrandId) {
+        // Show Modal with loading spinner
+        document.getElementById('loadingSpinner').classList.remove('d-none');
+        document.getElementById('lessonContent').innerText = "";
+        resultModal.show();
+
+        const data = {
+            substrand_id: substrandId,
+            material_id: materialId
+        };
+
+        fetch('/api/intelligence/generate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken') // Required for Django POST
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Hide spinner
+            document.getElementById('loadingSpinner').classList.add('d-none');
+            
+            if (data.content) {
+                // Display the result
+                // Note: data.content is the raw string. 
+                // In a real app, you might format this JSON nicely.
+                document.getElementById('lessonContent').innerText = data.content; 
+            } else if (data.error) {
+                document.getElementById('lessonContent').innerText = "Error: " + data.error;
+            }
+        })
+        .catch(error => {
+            document.getElementById('loadingSpinner').classList.add('d-none');
+            document.getElementById('lessonContent').innerText = "Network Error: " + error;
+        });
+    }
+
+    // Helper to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

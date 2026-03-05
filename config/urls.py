@@ -18,7 +18,8 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-     path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls),
+    path('', include('dashboard.urls')),
     path('api/auth/', include('authentication.urls')), # Assuming you created these
     path('api/curriculum/', include('curriculum.urls')),
     path('api/intelligence/', include('intelligence.urls')),
